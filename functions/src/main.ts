@@ -33,7 +33,7 @@ const createNestServer = async (expressInstance: express.Express) => {
     AppModule,
     new ExpressAdapter(expressInstance),
   );
-  app.enableCors();
+  app.enableCors({});
   await app.init();
 };
 
@@ -42,3 +42,4 @@ createNestServer(server)
   .catch((err) => console.error('NestJS server creation error', err));
 
 export const api = onRequest({ region: ['asia-northeast3'] }, server);
+///
