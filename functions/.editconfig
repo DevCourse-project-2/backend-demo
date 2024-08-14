@@ -1,0 +1,6 @@
+# .editorconfig 파일의 내용
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
