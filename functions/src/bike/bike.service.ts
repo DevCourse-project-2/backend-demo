@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import * as admin from 'firebase-admin';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
-import * as path from 'path';
+
+// JSON 파일을 타입스크립트 방식으로 임포트
+import * as serviceAccount from '../../biketracer-b416d-99fb06b86262.json';
 
 interface BikeStation {
   stationId: string;
@@ -16,22 +18,21 @@ interface BikeStation {
 }
 
 @Injectable()
-export class BikeService {
-  private firestore: FirebaseFirestore.Firestore;
+export class BikeService implements OnModuleInit {
+  private firestore!: FirebaseFirestore.Firestore;
 
   constructor(
     private httpService: HttpService,
     private configService: ConfigService,
-  ) {
-    const keyFilePath = path.resolve(
-      __dirname,
-      '../../biketracer-b416d-firebase-adminsdk-sgy25-7f5a755154.json',
-    );
+  ) {}
 
+  async onModuleInit() {
     // Firebase Admin SDK 초기화
     if (!admin.apps.length) {
       admin.initializeApp({
-        credential: admin.credential.cert(keyFilePath),
+        credential: admin.credential.cert(
+          serviceAccount as admin.ServiceAccount,
+        ),
       });
     }
 
@@ -40,6 +41,11 @@ export class BikeService {
   }
 
   async updateBikeData(): Promise<void> {
+    if (!this.firestore) {
+      console.log('Waiting for Firebase to initialize...');
+      await this.waitForFirebaseInitialization();
+    }
+
     const apiKey = this.configService.get<string>('PUBLIC_API_KEY');
     const apiUrls = [
       `http://openapi.seoul.go.kr:8088/${apiKey}/json/bikeList/1/1000/`,
@@ -64,10 +70,12 @@ export class BikeService {
       );
 
       const bikeCollection = this.firestore.collection('bikeStations');
+      console.log('Firestore collection path:', bikeCollection.path);
 
       const batch = this.firestore.batch();
       const snapshot = await bikeCollection.get();
       snapshot.forEach((doc) => batch.delete(doc.ref));
+
       bikeData.forEach((station: BikeStation) => {
         console.log('Storing station:', station);
         const docRef = bikeCollection.doc(station.stationId);
@@ -76,8 +84,24 @@ export class BikeService {
 
       await batch.commit();
       console.log('Bike data updated in Firestore');
-    } catch (error) {
-      console.error('Failed to update bike data:', error);
+    } catch (error: any) {
+      if (error.code === 5) {
+        // Firestore에서 NOT_FOUND 에러코드
+        console.error('Firestore document not found:', error);
+      } else {
+        console.error('Failed to update bike data:', error);
+      }
     }
+  }
+
+  private waitForFirebaseInitialization(): Promise<void> {
+    return new Promise((resolve) => {
+      const interval = setInterval(() => {
+        if (this.firestore) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 100);
+    });
   }
 }

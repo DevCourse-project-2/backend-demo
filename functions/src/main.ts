@@ -44,4 +44,12 @@ createNestServer(server)
   .catch((err) => console.error('NestJS server creation error', err));
 
 export const api = onRequest({ region: ['asia-northeast3'] }, server);
+// 이거로 URL이 다른 새로운 function을 만들 수 있음
+// const newServer = express();
+
+// createNestServer(newServer)
+//   .then(() => console.log('New NestJS server created'))
+//   .catch((err) => console.error('New NestJS server creation error', err));
+
+// export const newApi = onRequest({ region: ['asia-northeast3'] }, newServer);
 ///

@@ -54,3 +54,8 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# firestore key
+./src/bike/firestore_service_key.json
+./biketracer-b416d-99fb06b86262.json
+./biketracer-b416d-99fb06b86262.json
