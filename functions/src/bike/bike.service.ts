@@ -1,11 +1,8 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import * as admin from 'firebase-admin';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
-
-// JSON 파일을 타입스크립트 방식으로 임포트
-import * as serviceAccount from '../../biketracer-b416d-99fb06b86262.json';
+import * as mysql from 'mysql2/promise';
 
 interface BikeStation {
   stationId: string;
@@ -19,7 +16,7 @@ interface BikeStation {
 
 @Injectable()
 export class BikeService implements OnModuleInit {
-  private firestore!: FirebaseFirestore.Firestore;
+  private connection!: mysql.Connection;
 
   constructor(
     private httpService: HttpService,
@@ -27,25 +24,19 @@ export class BikeService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Firebase Admin SDK 초기화
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(
-          serviceAccount as admin.ServiceAccount,
-        ),
-      });
-    }
+    // MySQL 연결 초기화
+    this.connection = await mysql.createConnection({
+      host: this.configService.get<string>('DB_HOST'),
+      port: this.configService.get<number>('DB_PORT'),
+      user: this.configService.get<string>('DB_USER'),
+      password: this.configService.get<string>('DB_PASSWORD') || '',
+      database: this.configService.get<string>('DB_NAME'),
+    });
 
-    this.firestore = admin.firestore();
-    console.log('Firestore initialized with Firebase Admin SDK');
+    console.log('Connected to MySQL');
   }
 
   async updateBikeData(): Promise<void> {
-    if (!this.firestore) {
-      console.log('Waiting for Firebase to initialize...');
-      await this.waitForFirebaseInitialization();
-    }
-
     const apiKey = this.configService.get<string>('PUBLIC_API_KEY');
     const apiUrls = [
       `http://openapi.seoul.go.kr:8088/${apiKey}/json/bikeList/1/1000/`,
@@ -69,39 +60,30 @@ export class BikeService implements OnModuleInit {
         })),
       );
 
-      const bikeCollection = this.firestore.collection('bikeStations');
-      console.log('Firestore collection path:', bikeCollection.path);
+      // MySQL 테이블 비우기
+      await this.connection.execute('DELETE FROM stations');
 
-      const batch = this.firestore.batch();
-      const snapshot = await bikeCollection.get();
-      snapshot.forEach((doc) => batch.delete(doc.ref));
+      // 데이터 삽입
+      const insertQuery = `
+        INSERT INTO stations (station_id, station_name, rack_tot_cnt, parking_bike_tot_cnt, shared, station_latitude, station_longitude)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `;
 
-      bikeData.forEach((station: BikeStation) => {
-        console.log('Storing station:', station);
-        const docRef = bikeCollection.doc(station.stationId);
-        batch.set(docRef, station);
-      });
-
-      await batch.commit();
-      console.log('Bike data updated in Firestore');
-    } catch (error: any) {
-      if (error.code === 5) {
-        // Firestore에서 NOT_FOUND 에러코드
-        console.error('Firestore document not found:', error);
-      } else {
-        console.error('Failed to update bike data:', error);
+      for (const station of bikeData) {
+        await this.connection.execute(insertQuery, [
+          station.stationId,
+          station.stationName,
+          station.rackTotCnt,
+          station.parkingBikeTotCnt,
+          station.shared,
+          station.stationLatitude,
+          station.stationLongitude,
+        ]);
       }
-    }
-  }
 
-  private waitForFirebaseInitialization(): Promise<void> {
-    return new Promise((resolve) => {
-      const interval = setInterval(() => {
-        if (this.firestore) {
-          clearInterval(interval);
-          resolve();
-        }
-      }, 100);
-    });
+      console.log('Bike data updated in MySQL');
+    } catch (error: any) {
+      console.error('Failed to update bike data:', error);
+    }
   }
 }
