@@ -24,22 +24,26 @@ export class KakaoService {
       code,
     };
 
-    const response = await firstValueFrom(this.httpService.post(url, payload, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    }));
+    const response = await firstValueFrom(
+      this.httpService.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      }),
+    );
 
     return response.data.access_token;
   }
 
   async getKakaoUserInfo(token: string): Promise<any> {
     const url = 'https://kapi.kakao.com/v2/user/me';
-    const response = await firstValueFrom(this.httpService.get(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }));
+    const response = await firstValueFrom(
+      this.httpService.get(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+    );
 
     return response.data;
   }
@@ -53,8 +57,8 @@ export class KakaoService {
 
     // JWT 토큰 생성
     const jwtToken = this.jwtService.sign(
-        { id: user.id },
-        { expiresIn: '90d' }
+      { id: user.id },
+      { expiresIn: '90d' },
     );
 
     return jwtToken;

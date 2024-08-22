@@ -46,10 +46,11 @@ export class UserService implements OnModuleInit {
       ]);
 
       // 삽입된 사용자 정보를 다시 조회하여 반환
-      const [newUserRows]: [RowDataPacket[], any] = await this.connection.execute(
-        'SELECT * FROM users WHERE kakao_id = ?',
-        [kakaoId],
-      );
+      const [newUserRows]: [RowDataPacket[], any] =
+        await this.connection.execute(
+          'SELECT * FROM users WHERE kakao_id = ?',
+          [kakaoId],
+        );
 
       return newUserRows[0];
     }
