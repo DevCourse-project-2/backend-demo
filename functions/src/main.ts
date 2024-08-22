@@ -1,36 +1,16 @@
-// import * as functions from 'firebase-functions';
-// import { NestFactory } from '@nestjs/core';
-// import { AppModule } from './app.module';
-// import { ExpressAdapter } from '@nestjs/platform-express';
-// import express, { Express } from 'express';
-
-// const server: Express = express();
-
-// const createNestServer = async (expressInstance: Express) => {
-//   const app = await NestFactory.create(
-//     AppModule,
-//     new ExpressAdapter(expressInstance),
-//   );
-//   app.enableCors();
-//   await app.init();
-// };
-
-// createNestServer(server)
-//   .then(() => console.log('NestJS server created'))
-//   .catch((err) => console.error('NestJS server creation error', err));
-
-// export const api = functions.https.onRequest(server);
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { BikeAppModule } from './bike.app.module';
+import { EtcAppModule } from './etc.app.module';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import express from 'express';
 import { onRequest } from 'firebase-functions/v2/https';
 
-const server = express();
+const bikeServer = express();
+const etcServer = express();
 
-const createNestServer = async (expressInstance: express.Express) => {
+const createBikeServer = async (expressInstance: express.Express) => {
   const app = await NestFactory.create(
-    AppModule,
+    BikeAppModule, // BikeAppModule 사용
     new ExpressAdapter(expressInstance),
   );
   app.enableCors({
@@ -39,18 +19,27 @@ const createNestServer = async (expressInstance: express.Express) => {
   await app.init();
 };
 
-createNestServer(server)
-  .then(() => console.log('NestJS server created'))
-  .catch((err) => console.error('NestJS server creation error', err));
+const createEtcServer = async (expressInstance: express.Express) => {
+  const app = await NestFactory.create(
+    EtcAppModule, // EtcAppModule 사용
+    new ExpressAdapter(expressInstance),
+  );
+  app.enableCors({
+    origin: '*',
+  });
+  await app.init();
+};
 
-export const bike_stations_update = onRequest({ region: ['asia-northeast3'] }, server);
+createBikeServer(bikeServer)
+  .then(() => console.log('Bike NestJS server created'))
+  .catch((err) => console.error('Bike NestJS server creation error', err));
 
-// 이거로 URL이 다른 새로운 function을 만들 수 있음
-// const newServer = express();
+createEtcServer(etcServer)
+  .then(() => console.log('Etc NestJS server created'))
+  .catch((err) => console.error('Etc NestJS server creation error', err));
 
-// createNestServer(newServer)
-//   .then(() => console.log('New NestJS server created'))
-//   .catch((err) => console.error('New NestJS server creation error', err));
-
-// export const other_api = onRequest({ region: ['asia-northeast3'] }, newServer);
-
+export const bike_stations_update = onRequest(
+  { region: ['asia-northeast3'] },
+  bikeServer,
+);
+export const etc = onRequest({ region: ['asia-northeast3'] }, etcServer);
